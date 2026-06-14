@@ -1,0 +1,22 @@
+# Reproduce the GitHub Actions "build-and-test (ubuntu-latest)" job locally
+# with `make ci-linux`, so glibc-only / feature-test-macro errors get caught
+# before they reach CI. Mirrors .github/workflows/ci.yml: same apt deps and
+# the same make / test / test-asan / coverage sequence on a glibc + -std=c11
+# -Werror toolchain. macOS local builds compile the __APPLE__ branch and so
+# cannot surface these (e.g. FIXED-085: realpath() needs _DEFAULT_SOURCE on
+# glibc). The make sequence runs at `docker run` time (see the ci-linux
+# target) so AddressSanitizer can be granted SYS_PTRACE.
+FROM ubuntu:latest
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        libsodium-dev \
+        libsqlite3-dev \
+        libssl-dev \
+        pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+COPY . .

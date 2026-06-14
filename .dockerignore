@@ -1,0 +1,13 @@
+build/
+results/coverage/
+results/*.db
+results/*.db-shm
+results/*.db-wal
+*.gcov
+*.gcda
+*.gcno
+vault
+test_runner
+bench_runner
+bench_rotation
+.DS_Store

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ubuntu ships libsodium 1.0.18 (no AEGIS-256) and OpenSSL 3.0
+        # (no ML-DSA), exercising both graceful-fallback paths; macOS
+        # Homebrew ships current versions, exercising the full feature set.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev libsqlite3-dev libssl-dev pkg-config
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libsodium sqlite3 openssl@3 pkgconf
+
+      - name: Build (zero warnings enforced)
+        run: make
+
+      - name: Unit tests
+        run: make test
+
+      - name: AddressSanitizer tests
+        run: make test-asan
+
+      - name: Coverage report generates
+        run: make coverage

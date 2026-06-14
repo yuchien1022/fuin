@@ -1,0 +1,23 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        libssl-dev \
+        libsodium-dev \
+        libsqlite3-dev \
+        pkg-config \
+        valgrind && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+COPY . .
+
+RUN make clean && make
+RUN useradd --create-home --shell /usr/sbin/nologin fuin && \
+    chown -R fuin:fuin /work
+
+USER fuin
+
+CMD ["make", "test-valgrind"]

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 445" role="img" aria-label="fuin CLI demo: vault creation with masked password, secret storage and retrieval, colour-coded listing, and audit verification">
+  <title>fuin command-line demo</title>
+  <desc>A terminal window showing a complete workflow: fuin init asks for a masked master password, fuin put stores a secret from a pipe, fuin list shows colour-coded active/archived states, fuin get retrieves the value after re-entering the password, and fuin audit-verify confirms the hash chain is intact.</desc>
+  <rect x="0" y="0" width="560" height="445" rx="10" fill="#1c1c20"/>
+  <circle cx="24" cy="20" r="6" fill="#ff5f57"/>
+  <circle cx="44" cy="20" r="6" fill="#febc2e"/>
+  <circle cx="64" cy="20" r="6" fill="#28c840"/>
+  <line x1="0" y1="40" x2="560" y2="40" stroke="#000000" stroke-opacity="0.3"/>
+  <g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#d6d8dc" xml:space="preserve">
+    <text x="280" y="25" text-anchor="middle" font-size="12" fill="#6e7681">fuin</text>
+
+    <text y="64"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin init</tspan></text>
+    <text y="84"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="104"><tspan x="20" fill="#8b949e">Confirm master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="124"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>vault initialized: fuin.db</tspan></text>
+
+    <text y="158"><tspan x="20" fill="#6e7681">$ </tspan><tspan>printf 'sk_live_...' | fuin put api/stripe --stdin</tspan></text>
+    <text y="178"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>secret stored: api/stripe</tspan></text>
+
+    <text y="212"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin list</tspan></text>
+    <text y="232" fill="#7d8590"><tspan x="20">NAME</tspan><tspan x="168">VER</tspan><tspan x="218">STATE</tspan><tspan x="322">ALGORITHM</tspan><tspan x="452">EXPIRES</tspan></text>
+    <text y="252"><tspan x="20">api/stripe</tspan><tspan x="172">1</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">2026-09-11</tspan></text>
+    <text y="272"><tspan x="20">db/prod</tspan><tspan x="172">1</tspan><tspan x="200" fill="#e3b341">&#9679;</tspan><tspan x="218" fill="#e3b341">archived</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
+    <text y="292"><tspan x="20">db/prod</tspan><tspan x="172">2</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
+
+    <text y="326"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin get api/stripe</tspan></text>
+    <text y="346"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="366"><tspan x="20" fill="#e6edf3">sk_live_51HfG0bP3kY...</tspan></text>
+
+    <text y="400"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin audit-verify</tspan></text>
+    <text y="420"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>audit log verified</tspan></text>
+  </g>
+</svg>
