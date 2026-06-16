@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 445" role="img" aria-label="fuin CLI demo: vault creation with masked password, secret storage and retrieval, colour-coded listing, and audit verification">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 637" role="img" aria-label="fuin CLI demo where every command shows its blue explanation hint and re-asks for the master password, with grey comments for commands whose purpose the hint does not cover">
   <title>fuin command-line demo</title>
-  <desc>A terminal window showing a complete workflow: fuin init asks for a masked master password, fuin put stores a secret from a pipe, fuin list shows colour-coded active/archived states, fuin get retrieves the value after re-entering the password, and fuin audit-verify confirms the hash chain is intact.</desc>
-  <rect x="0" y="0" width="560" height="445" rx="10" fill="#1c1c20"/>
+  <desc>A terminal window where every fuin command prints its blue guidance hint and unlocks the vault with a masked master password: init explains and sets the password, put explains and asks for the value, list, get and audit-verify each explain the unlock then act. Grey hash comments add the purpose of list, get and audit-verify.</desc>
+  <rect x="0" y="0" width="560" height="637" rx="10" fill="#1c1c20"/>
   <circle cx="24" cy="20" r="6" fill="#ff5f57"/>
   <circle cx="44" cy="20" r="6" fill="#febc2e"/>
   <circle cx="64" cy="20" r="6" fill="#28c840"/>
@@ -9,25 +9,36 @@
   <g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#d6d8dc" xml:space="preserve">
     <text x="280" y="25" text-anchor="middle" font-size="12" fill="#6e7681">fuin</text>
 
-    <text y="64"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin init</tspan></text>
-    <text y="84"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
-    <text y="104"><tspan x="20" fill="#8b949e">Confirm master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
-    <text y="124"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>vault initialized: fuin.db</tspan></text>
+    <text y="52"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin init</tspan></text>
+    <text y="72"><tspan x="20" fill="#6cb6ff">Creating a new vault. Choose a master password to protect it.</tspan></text>
+    <text y="92"><tspan x="20" fill="#6cb6ff">You will need it every time; it cannot be recovered if lost.</tspan></text>
+    <text y="112"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="132"><tspan x="20" fill="#8b949e">Confirm master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="152"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>vault initialized: fuin.db</tspan></text>
 
-    <text y="158"><tspan x="20" fill="#6e7681">$ </tspan><tspan>printf 'sk_live_...' | fuin put api/stripe --stdin</tspan></text>
-    <text y="178"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>secret stored: api/stripe</tspan></text>
+    <text y="182"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin put api/stripe</tspan></text>
+    <text y="202"><tspan x="20" fill="#6cb6ff">Enter your master password to unlock the vault.</tspan></text>
+    <text y="222"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="242"><tspan x="20" fill="#6cb6ff">Enter the value to store (a password, API key, or token), twice.</tspan></text>
+    <text y="262"><tspan x="20" fill="#8b949e">Value for 'api/stripe': </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="282"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>secret stored: api/stripe</tspan></text>
 
-    <text y="212"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin list</tspan></text>
-    <text y="232" fill="#7d8590"><tspan x="20">NAME</tspan><tspan x="168">VER</tspan><tspan x="218">STATE</tspan><tspan x="322">ALGORITHM</tspan><tspan x="452">EXPIRES</tspan></text>
-    <text y="252"><tspan x="20">api/stripe</tspan><tspan x="172">1</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">2026-09-11</tspan></text>
-    <text y="272"><tspan x="20">db/prod</tspan><tspan x="172">1</tspan><tspan x="200" fill="#e3b341">&#9679;</tspan><tspan x="218" fill="#e3b341">archived</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
-    <text y="292"><tspan x="20">db/prod</tspan><tspan x="172">2</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
+    <text y="312"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin list</tspan><tspan x="195" fill="#6e7681"># show names and status, never the values</tspan></text>
+    <text y="332"><tspan x="20" fill="#6cb6ff">Enter your master password to unlock the vault.</tspan></text>
+    <text y="352"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="372" fill="#7d8590"><tspan x="20">NAME</tspan><tspan x="168">VER</tspan><tspan x="218">STATE</tspan><tspan x="322">ALGORITHM</tspan><tspan x="452">EXPIRES</tspan></text>
+    <text y="392"><tspan x="20">api/stripe</tspan><tspan x="172">1</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">2026-09-11</tspan></text>
+    <text y="412"><tspan x="20">db/prod</tspan><tspan x="172">1</tspan><tspan x="200" fill="#e3b341">&#9679;</tspan><tspan x="218" fill="#e3b341">archived</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
+    <text y="432"><tspan x="20">db/prod</tspan><tspan x="172">2</tspan><tspan x="200" fill="#56d364">&#9679;</tspan><tspan x="218" fill="#56d364">active</tspan><tspan x="322">AES-256-GCM</tspan><tspan x="452">-</tspan></text>
 
-    <text y="326"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin get api/stripe</tspan></text>
-    <text y="346"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
-    <text y="366"><tspan x="20" fill="#e6edf3">sk_live_51HfG0bP3kY...</tspan></text>
+    <text y="462"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin get api/stripe</tspan><tspan x="195" fill="#6e7681"># read a secret back</tspan></text>
+    <text y="482"><tspan x="20" fill="#6cb6ff">Enter your master password to unlock the vault.</tspan></text>
+    <text y="502"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="522"><tspan x="20" fill="#e6edf3">sk_live_51HfG0bP3kY...</tspan></text>
 
-    <text y="400"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin audit-verify</tspan></text>
-    <text y="420"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>audit log verified</tspan></text>
+    <text y="552"><tspan x="20" fill="#6e7681">$ </tspan><tspan>fuin audit-verify</tspan><tspan x="195" fill="#6e7681"># prove the history was not tampered with</tspan></text>
+    <text y="572"><tspan x="20" fill="#6cb6ff">Enter your master password to unlock the vault.</tspan></text>
+    <text y="592"><tspan x="20" fill="#8b949e">Master password: </tspan><tspan fill="#6e7681">••••••••</tspan></text>
+    <text y="612"><tspan x="20" fill="#56d364">&#10003; </tspan><tspan>audit log verified</tspan></text>
   </g>
 </svg>

@@ -3,7 +3,7 @@
 [![CI](https://github.com/yuchien1022/fuin/actions/workflows/ci.yml/badge.svg)](https://github.com/yuchien1022/fuin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![fuin CLI demo: vault creation with masked password, secret storage and retrieval, colour-coded listing, and audit verification](docs/fuin-demo.svg)
+![fuin CLI demo: every command prints a guidance hint and unlocks the vault with a masked master password (init sets it), then stores a secret, lists colour-coded status, retrieves a value, and verifies the audit log](docs/fuin-demo.svg)
 
 A local, zero-server secrets manager for developer secrets (API keys,
 database passwords, tokens, `.env` contents). It uses envelope encryption
@@ -55,7 +55,7 @@ Basic usage:
 
 ```bash
 fuin init                                # create ./fuin.db; set master password (asked twice)
-printf 'my-secret' | fuin put db/prod --stdin
+fuin put db/prod                         # asks for the value, twice (input hidden)
 fuin get db/prod                         # prints the secret
 fuin list                                # shows names and metadata only
 fuin audit-verify                        # verifies the audit log
@@ -115,7 +115,7 @@ and flags.
 
 | Task | Command |
 |---|---|
-| Store / read a secret | `fuin put NAME --stdin` / `fuin get NAME` |
+| Store / read a secret | `fuin put NAME` / `fuin get NAME` |
 | List names + metadata | `fuin list` |
 | Generate a password | `fuin generate NAME` |
 | 2FA (TOTP) code | `fuin totp NAME` |
@@ -127,11 +127,30 @@ and flags.
 Secret values go to stdout; confirmations, prompts, and errors go to
 stderr. Command substitution and redirection capture only the value.
 
+### What the prompts ask you
+
+When you do not supply a password or value up front, Fuin asks for it at
+the terminal. Input is hidden (nothing echoes as you type), and each
+prompt is preceded by a one-line explanation of what it wants:
+
+| When you run | Fuin asks for | What to enter |
+|---|---|---|
+| `fuin init` (new vault) | a master password, twice | a NEW password you choose; you need it every time and it cannot be recovered if lost |
+| any command on an existing vault | the master password | the password you set at `init` |
+| `fuin put NAME` (no `--stdin` or value) | the secret value, twice | the content to store: a password, API key, or token |
+| `fuin rotate-kek` | the current password, then a new one twice | the old password to unlock, then the new master password |
+| `fuin pqc-keygen`, `fuin audit-keygen` | a private-key passphrase, twice | a NEW passphrase that encrypts the generated key file |
+| `fuin backup-import`, `fuin audit-sign-root` | the private-key passphrase | the passphrase you chose when generating that key |
+
+Non-interactive automation skips every prompt: set `FUIN_PASSWORD` (and
+`FUIN_NEW_PASSWORD` for `rotate-kek`), pipe secret values through
+`--stdin`, and pass key passphrases with `--key-passphrase-file PATH`.
+
 ### Store and retrieve secrets
 
 ```bash
-fuin put db/prod --stdin < password.txt   # from a file or pipe
-printf '%s' 'sk_live_...' | fuin put api/stripe --stdin
+fuin put db/prod                          # prompts for the value (hidden, twice)
+fuin put db/prod --stdin < password.txt   # or read it from a file or pipe
 fuin get db/prod                          # print to stdout
 fuin get db/prod --raw > password.bin      # exact bytes, no trailing newline
 fuin get db/prod --copy                   # clipboard; auto-clears in 30 s
@@ -157,7 +176,7 @@ Store the base32 seed, then request codes. Each generation logs a READ
 audit entry:
 
 ```bash
-printf '%s' 'JBSWY3DPEHPK3PXP' | fuin put otp/github --stdin
+fuin put otp/github           # paste the base32 seed, e.g. JBSWY3DPEHPK3PXP
 fuin totp otp/github          # 6-digit RFC 6238 code (also --copy)
 ```
 
@@ -167,10 +186,10 @@ Updates never overwrite: each `put` to an existing name creates a new
 version and archives the old one.
 
 ```bash
-printf '%s' 'new-password' | fuin put db/prod --stdin      # now version 2
+fuin put db/prod                      # store a new value: version 2
 fuin get db/prod --version 1          # read an old version
 fuin rollback db/prod --version 1     # restore v1 as a NEW active version
-printf '%s' 'abc' | fuin put session/key --stdin --ttl 90d # expires in 90 days
+fuin put session/key --ttl 90d        # value prompt; expires in 90 days
 fuin check-expiry --within 7d         # what needs attention this week
 fuin auto-rotate                      # re-key all expired secrets
 ```

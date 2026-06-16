@@ -819,6 +819,186 @@ static int cli_command_accepts_name(const char *command)
            (strcmp(command, "rollback") == 0);
 }
 
+/* One-line argument usage per command. This table is also the single source of
+   truth for "is this a real command?" (cli_command_usage returns NULL for
+   anything not listed) and backs `fuin <command> --help`. Aliases repeat their
+   canonical command's usage line on purpose, so the canonical spelling is what
+   gets taught back. Keep the spellings in sync with cli_dispatch(). */
+typedef struct {
+    const char *name;
+    const char *usage;
+} cli_command_help_t;
+
+static const cli_command_help_t CLI_COMMAND_HELP[] = {
+    {"init",                  "init"},
+    {"put",                   "put NAME [--stdin | -v VALUE] [--algorithm ALG] [--ttl DURATION]"},
+    {"set",                   "put NAME [--stdin | -v VALUE] [--algorithm ALG] [--ttl DURATION]"},
+    {"generate",              "generate NAME [--length N] [--no-symbols] [--copy] [--ttl DURATION]"},
+    {"gen",                   "generate NAME [--length N] [--no-symbols] [--copy] [--ttl DURATION]"},
+    {"get",                   "get NAME [--version N] [--copy] [--raw]"},
+    {"totp",                  "totp NAME [--copy]"},
+    {"list",                  "list [--all]"},
+    {"ls",                    "list [--all]"},
+    {"delete",                "delete NAME"},
+    {"del",                   "delete NAME"},
+    {"rollback",              "rollback NAME --version N"},
+    {"rotate-kek",            "rotate-kek"},
+    {"rotate",                "rotate-kek"},
+    {"check-expiry",          "check-expiry [--within DURATION]"},
+    {"auto-rotate",           "auto-rotate"},
+    {"rotate-dek",            "auto-rotate"},
+    {"issue-token",           "issue-token --scope SCOPE --ttl DURATION [--subject NAME]"},
+    {"check-token",           "check-token --scope SCOPE (token from FUIN_TOKEN)"},
+    {"revoke-tokens",         "revoke-tokens"},
+    {"audit-verify",          "audit-verify"},
+    {"verify",                "audit-verify"},
+    {"audit-root",            "audit-root"},
+    {"merkle-root",           "audit-root"},
+    {"audit-proof",           "audit-proof --entry-id N"},
+    {"audit-verify-proof",    "audit-verify-proof --entry-id N --root HEX --proof HEX --leaf-index N --entries N"},
+    {"audit-keygen",          "audit-keygen --public-out PATH --private-out PATH"},
+    {"audit-sign-root",       "audit-sign-root --private-key PATH"},
+    {"audit-verify-root-sig", "audit-verify-root-sig --public-key PATH --root HEX --signature B64 --entries N"},
+    {"status-report",         "status-report"},
+    {"security-report",       "status-report"},
+    {"report",                "status-report"},
+    {"pqc-keygen",            "pqc-keygen --public-out PATH --private-out PATH"},
+    {"backup-export",         "backup-export --recipient PATH --out PATH"},
+    {"backup-import",         "backup-import --private-key PATH --input PATH --out PATH"},
+};
+
+/* Usage line for a command spelling, or NULL when the command is unknown. */
+static const char *cli_command_usage(const char *command)
+{
+    size_t i;
+
+    if ((command == NULL) || (command[0] == '\0')) {
+        return NULL;
+    }
+    for (i = 0U; i < (sizeof(CLI_COMMAND_HELP) / sizeof(CLI_COMMAND_HELP[0]));
+         i++) {
+        if (strcmp(command, CLI_COMMAND_HELP[i].name) == 0) {
+            return CLI_COMMAND_HELP[i].usage;
+        }
+    }
+    return NULL;
+}
+
+/* Classic Levenshtein, bounded so a pathological argv cannot overflow the
+   buffers or spin: anything longer than they hold is reported as "far". */
+static size_t cli_edit_distance(const char *a, const char *b)
+{
+    size_t prev[64];
+    size_t curr[64];
+    size_t la = strlen(a);
+    size_t lb = strlen(b);
+    size_t i;
+    size_t j;
+
+    if ((la > 62U) || (lb > 62U)) {
+        return 64U;
+    }
+    for (j = 0U; j <= lb; j++) {
+        prev[j] = j;
+    }
+    for (i = 1U; i <= la; i++) {
+        curr[0] = i;
+        for (j = 1U; j <= lb; j++) {
+            size_t cost = (a[i - 1U] == b[j - 1U]) ? 0U : 1U;
+            size_t best = prev[j] + 1U;       /* deletion */
+            size_t ins = curr[j - 1U] + 1U;   /* insertion */
+            size_t sub = prev[j - 1U] + cost; /* substitution */
+
+            if (ins < best) {
+                best = ins;
+            }
+            if (sub < best) {
+                best = sub;
+            }
+            curr[j] = best;
+        }
+        for (j = 0U; j <= lb; j++) {
+            prev[j] = curr[j];
+        }
+    }
+    return prev[lb];
+}
+
+/* Closest known command within two edits, or NULL when nothing is close. */
+static const char *cli_closest_command(const char *command)
+{
+    const char *best = NULL;
+    size_t best_dist = 3U;
+    size_t i;
+
+    if ((command == NULL) || (strlen(command) < 2U)) {
+        return NULL;
+    }
+    for (i = 0U; i < (sizeof(CLI_COMMAND_HELP) / sizeof(CLI_COMMAND_HELP[0]));
+         i++) {
+        size_t d = cli_edit_distance(command, CLI_COMMAND_HELP[i].name);
+
+        if (d < best_dist) {
+            best_dist = d;
+            best = CLI_COMMAND_HELP[i].name;
+        }
+    }
+    return best;
+}
+
+/* `fuin <command> --help`: the command's own one-line usage, then a pointer to
+   the full reference, instead of dumping every command. */
+static void cli_print_command_help(FILE *stream, const char *command)
+{
+    const char *usage = cli_command_usage(command);
+
+    if (usage == NULL) {
+        cli_print_usage(stream);
+        return;
+    }
+    fprintf(stream, "Usage: fuin %s\n", usage);
+    if (cli_command_accepts_name(command)) {
+        fputs("\nThe NAME can be given directly (e.g. 'fuin get db/prod')\n"
+              "or via -n/--name.\n",
+              stream);
+    }
+    fputs("\nRun 'fuin --help' for the full command reference and all "
+          "options.\n",
+          stream);
+}
+
+/* Turn a bare SM_ERR_INVALID_ARGUMENT from dispatch into something actionable:
+   name the command, say what is missing, show its usage, and point onward. */
+static void cli_report_invalid_argument(const cli_options_t *options)
+{
+    const char *command = (options != NULL) ? options->command : NULL;
+    const char *usage;
+
+    if ((command == NULL) || (command[0] == '\0')) {
+        cli_print_usage(stderr);
+        return;
+    }
+    usage = cli_command_usage(command);
+    if (usage == NULL) {
+        const char *guess = cli_closest_command(command);
+
+        cli_error("'%s' is not a fuin command", command);
+        if (guess != NULL) {
+            cli_hint(stderr, "did you mean 'fuin %s'?", guess);
+        }
+        cli_hint(stderr, "run 'fuin --help' to see all commands");
+        return;
+    }
+    if (cli_command_accepts_name(command) &&
+        ((options->name == NULL) || (options->name[0] == '\0'))) {
+        cli_error("%s: missing secret NAME", command);
+    } else {
+        cli_error("%s: missing or invalid arguments", command);
+    }
+    cli_hint(stderr, "usage: fuin %s", usage);
+    cli_hint(stderr, "details: fuin %s --help", command);
+}
+
 static int cli_parse_options(int argc, char **argv, cli_options_t *options)
 {
     char **parse_argv = NULL;
@@ -866,12 +1046,18 @@ static int cli_parse_options(int argc, char **argv, cli_options_t *options)
             status = SM_ERR_INVALID_ARGUMENT;
         }
         if (options->positional_name != NULL) {
-            if ((options->command == NULL) ||
-                !cli_command_accepts_name(options->command) ||
-                (options->name != NULL)) {
-                status = SM_ERR_INVALID_ARGUMENT;
-            } else {
+            if ((options->command != NULL) &&
+                cli_command_accepts_name(options->command) &&
+                (options->name == NULL)) {
                 options->name = options->positional_name;
+            } else if ((options->command != NULL) &&
+                       (cli_command_usage(options->command) == NULL)) {
+                /* Unknown command with a stray positional: leave status as-is
+                   so dispatch can report it ("not a fuin command" +
+                   did-you-mean) instead of failing here with the full-usage
+                   dump. The stray positional is simply ignored. */
+            } else {
+                status = SM_ERR_INVALID_ARGUMENT;
             }
         }
         if (options->raw && !options->help) {
@@ -1042,6 +1228,29 @@ static int cli_prompt_password_confirmed(const char *prompt,
         sodium_memzero(out, out_len);
     }
     return status;
+}
+
+/* Print a one-line explanatory note to the controlling terminal so the
+   interactive prompt that follows has context (what is being asked, and why).
+   Written to /dev/tty, exactly like the password prompt, so it appears even
+   when stdout/stderr are redirected; silent and harmless when no terminal is
+   attached (the following prompt then fails into the env/option error path,
+   unchanged). Never carries secret data. */
+static void cli_tty_note(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));
+static void cli_tty_note(const char *fmt, ...)
+{
+    FILE *tty = fopen("/dev/tty", "w");
+    va_list ap;
+
+    if (tty == NULL) {
+        return;
+    }
+    va_start(ap, fmt);
+    (void)vfprintf(tty, fmt, ap);
+    va_end(ap);
+    (void)fflush(tty);
+    (void)fclose(tty);
 }
 
 static int cli_resolve_parent_path(const char *path, char **resolved_path)
@@ -1249,11 +1458,17 @@ static int cli_load_key_passphrase(const cli_options_t *options,
                                             out_len);
     }
     if (confirmed) {
+        cli_tty_note(
+            "Set a passphrase to encrypt the new private key file.\n"
+            "You will need it whenever you use this key; your typing stays "
+            "hidden.\n");
         return cli_prompt_password_confirmed("Private key passphrase: ",
                                              "Confirm private key passphrase: ",
                                              out,
                                              out_len);
     }
+    cli_tty_note("Enter the passphrase that protects the private key "
+                 "(your typing stays hidden).\n");
     return cli_prompt_password("Private key passphrase: ", out, out_len);
 }
 
@@ -2330,15 +2545,18 @@ static int cli_run_put(const cli_options_t *options)
            way `pass insert` does. */
         char prompt[128];
 
+        cli_tty_note("Enter the secret value to store under '%s'\n"
+                     "(e.g. a password, API key, or token). Type it twice.\n",
+                     options->name);
         (void)snprintf(prompt,
                        sizeof(prompt),
-                       "Value for '%s': ",
+                       "Value for '%s' (input hidden): ",
                        options->name);
         status = cli_prompt_password(prompt,
                                      typed_value,
                                      sizeof(typed_value));
         if (status == SM_OK) {
-            status = cli_prompt_password("Retype to confirm: ",
+            status = cli_prompt_password("Retype to confirm (input hidden): ",
                                          typed_confirm,
                                          sizeof(typed_confirm));
         }
@@ -3430,7 +3648,12 @@ int main(int argc, char **argv)
         return 2;
     }
     if (options.help) {
-        cli_print_usage(stdout);
+        if ((options.command != NULL) &&
+            (cli_command_usage(options.command) != NULL)) {
+            cli_print_command_help(stdout, options.command);
+        } else {
+            cli_print_usage(stdout);
+        }
         cli_clear_sensitive(&options);
         return 0;
     }
@@ -3444,12 +3667,18 @@ int main(int argc, char **argv)
         cli_command_needs_master_password(options.command)) {
         if ((strcmp(options.command, "init") == 0) &&
             (access(options.db_path, F_OK) != 0)) {
+            cli_tty_note(
+                "Creating a new vault. Choose a master password to protect "
+                "it.\nYou will need it every time and it cannot be recovered "
+                "if lost; your typing stays hidden.\n");
             prompt_status = cli_prompt_password_confirmed(
                 "Master password: ",
                 "Confirm master password: ",
                 prompted_password,
                 sizeof(prompted_password));
         } else {
+            cli_tty_note("Enter your master password to unlock the vault "
+                         "(your typing stays hidden).\n");
             prompt_status = cli_prompt_password("Master password: ",
                                                 prompted_password,
                                                 sizeof(prompted_password));
@@ -3467,6 +3696,9 @@ int main(int argc, char **argv)
     if ((options.new_password == NULL) &&
         ((strcmp(options.command, "rotate-kek") == 0) ||
          (strcmp(options.command, "rotate") == 0))) {
+        cli_tty_note(
+            "Now choose a new master password (your typing stays hidden).\n"
+            "This re-wraps every key; the old password will stop working.\n");
         prompt_status = cli_prompt_password_confirmed(
             "New master password: ",
             "Confirm new master password: ",
@@ -3522,6 +3754,8 @@ int main(int argc, char **argv)
         } else if (status == SM_ERR_INPUT_TOO_LARGE) {
             cli_error("stdin secret is too large (max %u bytes)",
                       (unsigned int)CLI_MAX_SECRET_BYTES);
+        } else if (status == SM_ERR_INVALID_ARGUMENT) {
+            cli_report_invalid_argument(&options);
         } else {
             cli_error("%s", utils_status_message(status));
         }
